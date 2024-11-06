@@ -12,7 +12,9 @@ Piri is a lightweight and easy-to-use object mapper for C#. It allows you to map
 
 ## Installation
 You can install Piri via NuGet Package Manager. Run the following command in the Package Manager Console:
+```powershell
 Install-Package Piri
+```
 
 ## Getting Started
 Let's say you have the following source and destination classes:
