@@ -52,6 +52,8 @@ jobs:
           cat $csproj_file
 
       - name: Commit new version and push
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           git config --local user.name "github-actions"
           git config --local user.email "github-actions@github.com"
