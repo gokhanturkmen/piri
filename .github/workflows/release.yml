@@ -79,7 +79,7 @@ jobs:
       - name: Publish to NuGet.org
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: dotnet nuget push "./nupkg/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key $NUGET_API_KEY --skip-duplicate
+        run: dotnet nuget push "${{ github.workspace }}/nupkg/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key $NUGET_API_KEY --skip-duplicate
 
       - name: Create GitHub Release
         uses: actions/create-release@v1
