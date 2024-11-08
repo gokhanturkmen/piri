@@ -38,6 +38,8 @@
         /// <param name="defaultMapFunction">The function that maps an object to the specified type.</param>
         /// <returns>The current instance of <see cref="MapperConfigurationOptions"/>.</returns>
         /// <exception cref="ArgumentNullException">Thrown when the <paramref name="defaultMapFunction"/> is null.</exception>
+        /// 
+        // TODO: rename method to AddDefaultMappingFor and move to the top of the class
         public MapperConfigurationOptions EnableDefaultMappingFor<TDestination>(Func<object, TDestination> defaultMapFunction)
         {
             ArgumentNullException.ThrowIfNull(defaultMapFunction);
