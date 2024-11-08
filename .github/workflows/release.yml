@@ -74,15 +74,20 @@ jobs:
         run: dotnet build src/Piri/Piri.sln --configuration Release --no-restore
 
       - name: Pack the NuGet package
-        run: dotnet pack src/Piri/Piri.sln --configuration Release --no-restore --output ${{ github.workspace }}/nupkg /p:Version=${{ env.new_version }}
+        run: dotnet pack src/Piri/Piri.sln --configuration Release --no-restore --output ./nupkg /p:Version=${{ env.new_version }}
 
-
+      - name: Verify nupkg Directory
+        run: |
+            echo "Contents of the workspace directory:"
+            ls -R .
+            echo "Contents of the nupkg directory:"
+            ls -R ./nupkg
+            
       - name: Publish to NuGet.org
         env:
             NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: dotnet nuget push "${{ github.workspace }}/nupkg/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key $NUGET_API_KEY --skip-duplicate
-
-
+        run: dotnet nuget push "./nupkg/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key $NUGET_API_KEY --skip-duplicate
+        
       - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
