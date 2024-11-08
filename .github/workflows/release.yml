@@ -68,13 +68,13 @@ jobs:
         id: extract_version
 
       - name: Restore dependencies
-        run: dotnet restore src/Piri/Piri.sln
+        run: dotnet restore src/Piri/Piri.Core/Piri.Core.csproj
 
       - name: Build the project
-        run: dotnet build src/Piri/Piri.sln --configuration Release --no-restore
+        run: dotnet build src/Piri/Piri.Core/Piri.Core.csproj --configuration Release --no-restore
 
       - name: Pack the NuGet package
-        run: dotnet pack src/Piri/Piri.sln --configuration Release --no-restore --output ./nupkg /p:Version=${{ env.new_version }}
+        run: dotnet pack src/Piri/Piri.Core/Piri.Core.csproj --configuration Release --no-restore --output ./nupkg /p:Version=${{ env.new_version }}
 
       - name: Verify nupkg Directory
         run: |
