@@ -1,0 +1,91 @@
+name: Release to GitHub # and NuGet
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v2
+        with:
+            fetch-depth: 0 # Fetch all history for tags
+
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.x'
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0)
+          echo "Latest tag: $latest_tag"
+          echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          # Extract the current version numbers
+          version=${{ env.latest_tag }}
+          major=$(echo $version | cut -d. -f1 | sed 's/v//')
+          minor=$(echo $version | cut -d. -f2)
+          patch=$(echo $version | cut -d. -f3)
+          
+          # Increment the patch version
+          new_patch=$((patch + 1))
+          new_version="${major}.${minor}.${new_patch}"
+          
+          # Set the new version as an output
+          echo "new_version=$new_version" >> $GITHUB_ENV
+          echo "Calculated new version: $new_version"
+
+      - name: Update .csproj version
+        run: |
+          csproj_file=$(find . -name '*.csproj')
+          sed -i "s|<Version>.*</Version>|<Version>${{ env.new_version }}</Version>|" $csproj_file
+          cat $csproj_file
+
+      - name: Commit new version and push
+        run: |
+          git config --local user.name "github-actions"
+          git config --local user.email "github-actions@github.com"
+          git add $(find . -name '*.csproj')
+          git commit -m "Bump version to ${{ env.new_version }}"
+          git tag -f v${{ env.new_version }}
+          git push -f origin release --tags
+
+
+      - name: Extract version from tag
+        run: echo "##[set-output name=VERSION;]${GITHUB_REF/refs\/tags\/v/}"
+        id: extract_version
+
+      - name: Restore dependencies
+        run: dotnet restore src/Piri/Piri.sln
+
+      - name: Build the project
+        run: dotnet build src/Piri/Piri.sln --configuration Release --no-restore
+
+      - name: Pack the NuGet package
+        run: dotnet pack src/Piri/Piri.sln --configuration Release --no-restore --output ./nupkg /p:Version=${{ env.new_version }}
+
+      - name: Publish to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: dotnet nuget push "./nupkg/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key $NUGET_API_KEY --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.new_version }}
+          release_name: "Release ${{ env.new_version }}"
+          body: "Automated release for version ${{ env.new_version }}"
+          draft: false
+          prerelease: false

@@ -6,6 +6,22 @@
         internal Dictionary<Type, Func<object, object>> DefaultMaps = [];
         internal bool DefaultMappingEnabled { get; private set; } = false;
 
+
+        /// <summary>
+        /// Enables the default mapping for a specific type.
+        /// </summary>
+        /// <typeparam name="T">The type for which the default mapping is enabled.</typeparam>
+        /// <param name="defaultMapFunction">The function that maps an object to the specified type.</param>
+        /// <returns>The current instance of <see cref="MapperConfigurationOptions"/>.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when the <paramref name="defaultMapFunction"/> is null.</exception>
+        /// 
+        public MapperConfigurationOptions AddDefaultMappingFor<TDestination>(Func<object, TDestination> defaultMapFunction)
+        {
+            ArgumentNullException.ThrowIfNull(defaultMapFunction);
+            DefaultMaps.Add(typeof(TDestination), source => defaultMapFunction(source)!);
+            return this;
+        }
+
         /// <summary>
         /// Adds a mapping function between the source type and the destination type.
         /// </summary>
@@ -28,22 +44,6 @@
         public MapperConfigurationOptions EnableDefaultMapping()
         {
             DefaultMappingEnabled = true;
-            return this;
-        }
-
-        /// <summary>
-        /// Enables the default mapping for a specific type.
-        /// </summary>
-        /// <typeparam name="T">The type for which the default mapping is enabled.</typeparam>
-        /// <param name="defaultMapFunction">The function that maps an object to the specified type.</param>
-        /// <returns>The current instance of <see cref="MapperConfigurationOptions"/>.</returns>
-        /// <exception cref="ArgumentNullException">Thrown when the <paramref name="defaultMapFunction"/> is null.</exception>
-        /// 
-        // TODO: rename method to AddDefaultMappingFor and move to the top of the class
-        public MapperConfigurationOptions EnableDefaultMappingFor<TDestination>(Func<object, TDestination> defaultMapFunction)
-        {
-            ArgumentNullException.ThrowIfNull(defaultMapFunction);
-            DefaultMaps.Add(typeof(TDestination), source => defaultMapFunction(source)!);
             return this;
         }
     }
