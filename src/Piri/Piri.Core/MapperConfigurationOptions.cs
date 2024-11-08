@@ -8,13 +8,12 @@
 
 
         /// <summary>
-        /// Enables the default mapping for a specific type.
+        /// Adds the default mapping for a specific destination type.
         /// </summary>
-        /// <typeparam name="T">The type for which the default mapping is enabled.</typeparam>
-        /// <param name="defaultMapFunction">The function that maps an object to the specified type.</param>
+        /// <typeparam name="TDestination">The type for which the default mapping is added.</typeparam>
+        /// <param name="defaultMapFunction">The function that maps an object to the specified destination type.</param>
         /// <returns>The current instance of <see cref="MapperConfigurationOptions"/>.</returns>
         /// <exception cref="ArgumentNullException">Thrown when the <paramref name="defaultMapFunction"/> is null.</exception>
-        /// 
         public MapperConfigurationOptions AddDefaultMappingFor<TDestination>(Func<object, TDestination> defaultMapFunction)
         {
             ArgumentNullException.ThrowIfNull(defaultMapFunction);
