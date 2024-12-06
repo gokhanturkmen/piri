@@ -1,9 +1,11 @@
-﻿namespace Piri.Core
+﻿using System.Reflection;
+
+namespace Piri.Core
 {
     public class MapperConfigurationOptions
     {
-        internal Dictionary<(Type, Type), Func<object, object>> Maps = [];
-        internal Dictionary<Type, Func<object, object>> DefaultMaps = [];
+        internal readonly Dictionary<(Type, Type), Func<object, object>> Maps = [];
+        internal readonly Dictionary<Type, Func<object, object>> DefaultMaps = [];
         internal bool DefaultMappingEnabled { get; private set; } = false;
 
 
@@ -36,6 +38,12 @@
             return this;
         }
 
+        public MapperConfigurationOptions AddMap<TSource, TDestination>()
+        {
+            AddDefaultMap<TSource, TDestination>(this);
+            return this;
+        }
+
         /// <summary>
         /// Enables the default mapping functionality.
         /// </summary>
@@ -44,6 +52,66 @@
         {
             DefaultMappingEnabled = true;
             return this;
+        }
+
+        internal static void AddDefaultMap<TSource, TDestination>(MapperConfigurationOptions options)
+        {
+            var sourceType = typeof(TSource);
+            var destinationType = typeof(TDestination);
+
+            if (options.Maps.ContainsKey((sourceType, destinationType)))
+            {
+                return;
+            }
+
+            List<Func<object, TDestination, TDestination>> mapFunctions = [];
+
+            foreach (var sourceProperty in sourceType.GetProperties().Where(p => p.CanRead))
+            {
+                var destinationProperty = destinationType.GetProperty(sourceProperty.Name, BindingFlags.SetProperty);
+                if (destinationProperty == null
+                    || sourceProperty.PropertyType != destinationProperty.PropertyType)
+                {
+                    continue;
+                }
+                TDestination mapFunction(object src, TDestination destination)
+                {
+                    destinationProperty.SetValue(destination, sourceProperty.GetValue(src));
+                    return destination;
+                }
+
+                mapFunctions.Add(mapFunction);
+            }
+
+            foreach (var sourceField in sourceType.GetFields().Where(f => f.IsPublic))
+            {
+                var destinationField = destinationType.GetField(sourceField.Name, BindingFlags.Public | BindingFlags.SetField);
+                if (destinationField == null
+                    || sourceField.FieldType != destinationField.FieldType)
+                {
+                    continue;
+                }
+                TDestination mapFunction(object src, TDestination destination)
+                {
+                    destinationField.SetValue(destination, sourceField.GetValue(src));
+                    return destination;
+                }
+
+                mapFunctions.Add(mapFunction);
+            }
+
+            object mainMapFunctionToBeCached(object src)
+            {
+                var destination = Activator.CreateInstance<TDestination>()
+                    ?? throw new InvalidOperationException("Failed to create an instance of the destination type.");
+                for (int i = 0; i < mapFunctions.Count; i++)
+                {
+                    destination = mapFunctions[i](src, destination);
+                }
+                return destination!;
+            }
+
+            options.Maps.TryAdd((sourceType, destinationType), mainMapFunctionToBeCached);
         }
     }
 }

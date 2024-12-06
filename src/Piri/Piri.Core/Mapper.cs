@@ -27,11 +27,13 @@ namespace Piri.Core
             }
             if (config.DefaultMappingEnabled)
             {
-                return DefaultMap<TDestination>(source);
+                return DefaultMapNew<TDestination>(source);
             }
 
             throw new NotImplementedException($"Mapping function not found for destination type {destinationType.Name}");
         }
+
+
 
         /// <summary>
         /// Provides a default mapping implementation by copying properties and fields from the source object to a new instance of the destination type.
@@ -39,7 +41,7 @@ namespace Piri.Core
         /// <typeparam name="TDestination">The type of the destination object.</typeparam>
         /// <param name="source">The source object to map from.</param>
         /// <returns>A new instance of <typeparamref name="TDestination"/> with values copied from the source object.</returns>
-        private static TDestination DefaultMap<TDestination>(object source)
+        private TDestination DefaultMapOld<TDestination>(object source)
         {
             var sourceType = source.GetType();
             var destinationType = typeof(TDestination);
@@ -47,9 +49,8 @@ namespace Piri.Core
             var newObject = Activator.CreateInstance<TDestination>();
             foreach (var sourceProperty in sourceType.GetProperties().Where(p => p.CanRead))
             {
-                var destinationProperty = destinationType.GetProperty(sourceProperty.Name);
+                var destinationProperty = destinationType.GetProperty(sourceProperty.Name, BindingFlags.SetProperty);
                 if (destinationProperty == null
-                    || !destinationProperty.CanWrite
                     || sourceProperty.PropertyType != destinationProperty.PropertyType)
                 {
                     continue;
@@ -59,16 +60,85 @@ namespace Piri.Core
 
             foreach (var sourceField in sourceType.GetFields().Where(f => f.IsPublic))
             {
-                var destinationField = destinationType.GetField(sourceField.Name, BindingFlags.Public);
+                var destinationField = destinationType.GetField(sourceField.Name, BindingFlags.Public | BindingFlags.SetField);
                 if (destinationField == null
-                    || destinationField.IsInitOnly
-                    || destinationField.IsLiteral
                     || sourceField.FieldType != destinationField.FieldType)
                 {
                     continue;
                 }
+
                 destinationField.SetValue(newObject, sourceField.GetValue(source));
             }
+
+            return newObject;
+        }
+
+        /// <summary>
+        /// Provides a default mapping implementation by copying properties and fields from the source object to a new instance of the destination type.
+        /// </summary>
+        /// <typeparam name="TDestination">The type of the destination object.</typeparam>
+        /// <param name="source">The source object to map from.</param>
+        /// <returns>A new instance of <typeparamref name="TDestination"/> with values copied from the source object.</returns>
+        internal TDestination DefaultMapNew<TDestination>(object source)
+        {
+            var sourceType = source.GetType();
+            var destinationType = typeof(TDestination);
+
+            if (config.Maps.TryGetValue((sourceType, destinationType), out var mapFn))
+            {
+                return (TDestination)mapFn(source);
+            }
+
+            List<Func<object, TDestination, TDestination>> mapFunctions = [];
+            var newObject = Activator.CreateInstance<TDestination>();
+
+            foreach (var sourceProperty in sourceType.GetProperties().Where(p => p.CanRead))
+            {
+                var destinationProperty = destinationType.GetProperty(sourceProperty.Name, BindingFlags.SetProperty);
+                if (destinationProperty == null
+                    || sourceProperty.PropertyType != destinationProperty.PropertyType)
+                {
+                    continue;
+                }
+                TDestination mapFunction(object src, TDestination destination)
+                {
+                    destinationProperty.SetValue(destination, sourceProperty.GetValue(src));
+                    return destination;
+                }
+
+                mapFunctions.Add(mapFunction);
+                newObject = mapFunction(source, newObject);
+            }
+
+            foreach (var sourceField in sourceType.GetFields().Where(f => f.IsPublic))
+            {
+                var destinationField = destinationType.GetField(sourceField.Name, BindingFlags.Public | BindingFlags.SetField);
+                if (destinationField == null
+                    || sourceField.FieldType != destinationField.FieldType)
+                {
+                    continue;
+                }
+                TDestination mapFunction(object src, TDestination destination)
+                {
+                    destinationField.SetValue(destination, sourceField.GetValue(src));
+                    return destination;
+                }
+
+                mapFunctions.Add(mapFunction);
+                newObject = mapFunction(source, newObject);
+            }
+
+            object mainMapFunctionToBeCached(object src)
+            {
+                var destination = Activator.CreateInstance<TDestination>();
+                for (int i = 0; i < mapFunctions.Count; i++)
+                {
+                    destination = mapFunctions[i](src, destination);
+                }
+                return destination;
+            }
+
+            config.Maps.TryAdd((sourceType, destinationType), mainMapFunctionToBeCached);
 
             return newObject;
         }
