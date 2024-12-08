@@ -13,7 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Piri.Core\Piri.Core.csproj" />
+    <ProjectReference Include="..\..\Piri.ModelExamples\Piri.ModelExamples.csproj" />
+    <ProjectReference Include="..\..\src\Piri.Core\Piri.Core.csproj" />
   </ItemGroup>
 
 </Project>
